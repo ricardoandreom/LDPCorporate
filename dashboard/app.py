@@ -10,6 +10,7 @@ from tabs.tab4_pca import *
 from tabs.tab1_macroeconomic_analysis import * 
 from tabs.tab2_bpstat_analysis import * 
 from tabs.tab3_concatdata_analysis import *
+from tabs.tab5_defaults import *
 
 # Set page configuration
 st.set_page_config(layout="wide", page_title="LDPs calibration dashboard")
@@ -69,6 +70,7 @@ df_medium_ldp = pd.read_csv('https://raw.githubusercontent.com/TRAVEL-GVM/Data/m
 df_large_ldp = pd.read_csv('https://raw.githubusercontent.com/TRAVEL-GVM/Data/main/Data/LDP/large_ldp.csv')
 df_small_ldp = pd.read_csv('https://raw.githubusercontent.com/TRAVEL-GVM/Data/main/Data/LDP/small_ldp.csv')
 df_all_ldp = pd.read_csv('https://raw.githubusercontent.com/TRAVEL-GVM/Data/main/Data/LDP/all_ldp.csv')
+df_def = pd.read_excel('https://raw.githubusercontent.com/TRAVEL-GVM/Data/main/Data/T_PD_DEF_HIST.xlsx')
 
 
 # create anual data
@@ -129,18 +131,21 @@ if company_type == "All":
     total_data = create_total_data(df_ldp)[0]
     macrodata_total = create_total_data(df_ldp)[1]
     cols_sector = all_companies_all_columns
+    df_def = df_def.copy()
 
 elif company_type == "Small":
     df_ldp = df_small_ldp.copy()
     total_data = create_total_data(df_ldp)[0]
     macrodata_total = create_total_data(df_ldp)[1]
     cols_sector = small_all_columns
+    df_def = df_def[df_def['MODELO'].isin(size_model_dict[company_type])] 
 
 elif company_type == "Medium":
     df_ldp = df_medium_ldp.copy()
     total_data = create_total_data(df_ldp)[0]
     macrodata_total = create_total_data(df_ldp)[1]
     cols_sector = medium_all_columns
+    df_def = df_def[df_def['MODELO'].isin(size_model_dict[company_type])] 
 
 elif company_type == "Large":
     # fazer update para large
@@ -148,15 +153,17 @@ elif company_type == "Large":
     total_data = create_total_data(df_ldp)[0]
     macrodata_total = create_total_data(df_ldp)[1]
     cols_sector = large_all_columns
+    df_def = df_def[df_def['MODELO'].isin(size_model_dict[company_type])] 
 
 
 # Create tabs
-tab0, tab1, tab2, tab3, tab4 = st.tabs([
+tab0, tab1, tab2, tab3, tab4, tab5 = st.tabs([
     "General overview", 
     "Macroeconomic data analysis", 
     "BPSTAT data analysis", 
     "Macroeconomic data vs Risk drivers",
-    "Principal Components Analysis"
+    "Principal Components Analysis",
+    "Defaults Analysis"
 ])
 
 with tab0:
@@ -175,3 +182,6 @@ with tab3:
 
 with tab4:
     plot_pca_results_tab(df_ldp, macrodata_total, cols_sector)
+
+with tab5:
+    tab_defaults(df_def, df_ldp, macrodata_total, cols_sector)

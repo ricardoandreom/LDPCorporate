@@ -585,3 +585,14 @@ container_style_html = """
             border-left: 5px solid #6e8efb;
         }
     </style>"""
+
+
+size_model_dict = {
+    "Small": ["SMALL_ENTERPRISES"],
+    "Medium": ["MEDIUM_ENTERPRISES"],
+    "Large": ["ACQUISITION_FINANCE", "PROJECT_FINANCE", "CORE_CORPORATE", "FINANCIAL_INSTITUTIONS"]
+}
+
+agg_cols = { "# OBS": "sum", "# BONS": "sum", "# NPL": "sum", "# DEFAULTS 12M": "sum", "EXPOSIÇÃO": "median", "EXPOSIÇÃO BONS": "median",
+            "EXPOSIÇÃO NPL": "median", "NOVOS DEFAULTS": "sum", "DEFAULTS TÉCNICOS": "sum", "DEFAULTS REAIS": "sum", "DEFAULTS EXCLUSÕES": "sum", "#1º DEF": "sum" 
+            }
