@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import seaborn as sns
 import plotly.express as px
+import plotly.graph_objects as go
 import numpy as np
 import pandas as pd
 from sklearn.preprocessing import StandardScaler
@@ -8,6 +9,8 @@ from sklearn.preprocessing import MinMaxScaler
 from sklearn.decomposition import PCA
 import streamlit as st
 from datetime import datetime
+from statsmodels.tsa.stattools import grangercausalitytests
+from statsmodels.tools.sm_exceptions import InfeasibleTestError
 from config import *
 
 def tab_defaults(defaults, df, df_macro, cols_sector):
@@ -27,21 +30,24 @@ def tab_defaults(defaults, df, df_macro, cols_sector):
     df_def['dtref'] = pd.to_datetime(df_def['dtref'], errors='coerce')  # Garante que é datetime
     df_def['Date'] = df_def['dtref'].dt.year  # Extrai apenas o ano
 
-    with st.expander("Defaults Analysis", expanded=False):
+    with st.expander("📊 Defaults Analysis", expanded=False):
 
         #st.dataframe(df_def)
         def_group = df_def.groupby('Date').agg(agg_cols).reset_index()
         #st.dataframe(def_group)
 
-
-        st.title("Gráfico de Linhas com Normalização Min-Max")
+        #st.title("Defaults analysis over time")
+        st.markdown(
+            "<h2 style='color: #179297; text-align: center;'>Defaults analysis over time</h2>",
+            unsafe_allow_html=True
+        )
 
         # Excluir 'Date' da seleção
         variables = [col for col in def_group.columns if col != 'Date']
-        selected_vars = st.multiselect("Selecione as variáveis para o gráfico:", variables)
+        selected_vars = st.multiselect("Select the variables for the plot:", variables, default=['EXPOSIÇÃO NPL', 'EXPOSIÇÃO BONS'])
 
         # Botão para normalizar
-        normalize = st.checkbox("Normalizar com Min-Max")
+        normalize = st.checkbox("Min-Max Normalization")
 
         # Filtrar e normalizar se necessário
         if selected_vars:
@@ -53,14 +59,14 @@ def tab_defaults(defaults, df, df_macro, cols_sector):
 
             # Plot com Plotly
             df_melted = df_plot.melt(id_vars='Date', value_vars=selected_vars,
-                                    var_name='Variável', value_name='Valor')
+                                    var_name='Variable', value_name='Value')
 
-            fig = px.line(df_melted, x='Date', y='Valor', color='Variável',
-                        title="Gráfico de Linhas das Variáveis Selecionadas")
+            fig = px.line(df_melted, x='Date', y='Value', color='Variable',
+                        title="Selected variables over time")
 
             st.plotly_chart(fig, use_container_width=True)
         else:
-            st.info("Selecione pelo menos uma variável para visualizar o gráfico.")
+            st.info("Select at one variable for the plot.")
     #########################################################################
 
     with st.expander("📊 Economic variables vs defaults", expanded=True):
@@ -103,50 +109,165 @@ def tab_defaults(defaults, df, df_macro, cols_sector):
         df_totalx = df_total[['Date'] + selected_macro].merge(def_group[["Date"] + selected_def_cols], on='Date', how='inner')
 
 
-        # correlation matrix
-        st.markdown(
-            "<h2 style='color: #179297; text-align: center;'>Correlation Matrix</h2>",
-            unsafe_allow_html=True
-        )
+        col5, col6 = st.columns(2)
 
-        st.write("Visualize relationships between variables:")
+        with col5:
 
-        plot_cols = list(df_totalx.columns)[1:]
-
-        if len(plot_cols) > 1:
-            if plot_cols:
-                df_corr = df_totalx[plot_cols]
-
-                corr_matrix = df_corr.corr()
-
-                mask = np.triu(np.ones_like(corr_matrix, dtype=bool))
-
-                corr_matrix_masked = corr_matrix.where(~mask)
-
-                fig6 = px.imshow(
-                    corr_matrix_masked,
-                    color_continuous_scale='Greens',
-                    aspect='auto',
-                    labels=dict(x="", y="", color="Correlation"),
-                    x=corr_matrix.columns,
-                    y=corr_matrix.columns,
-                    text_auto=".2f" 
-                )
-
-                fig6.update_layout(
-                width=600,  
-                height=600,  
-                margin=dict(l=50, r=50, t=50, b=50)  
+            # correlation matrix
+            st.markdown(
+                "<h2 style='color: #179297; text-align: center;'>Correlation Matrix</h2>",
+                unsafe_allow_html=True
             )
 
-                st.plotly_chart(fig6, use_container_width=True)
+            st.write("Visualize relationships between variables:")
+
+            plot_cols = list(df_totalx.columns)[1:]
+
+            if len(plot_cols) > 1:
+                if plot_cols:
+                    df_corr = df_totalx[plot_cols]
+
+                    corr_matrix = df_corr.corr()
+
+                    mask = np.triu(np.ones_like(corr_matrix, dtype=bool))
+
+                    corr_matrix_masked = corr_matrix.where(~mask)
+
+                    fig6 = px.imshow(
+                        corr_matrix_masked,
+                        color_continuous_scale='Greens',
+                        aspect='auto',
+                        labels=dict(x="", y="", color="Correlation"),
+                        x=corr_matrix.columns,
+                        y=corr_matrix.columns,
+                        text_auto=".2f" 
+                    )
+
+                    fig6.update_layout(
+                    width=600,  
+                    height=600,  
+                    margin=dict(l=50, r=50, t=50, b=50)  
+                )
+
+                    st.plotly_chart(fig6, use_container_width=True)
+                else:
+                    st.warning("Please select at least one variable to calculate the correlation matrix.")
+
+            with col6:
+                st.write("🔎 Preview data:")
+                st.dataframe(df_totalx, hide_index=True)
+
+        # test granger entre 2 variaveis à do df
+        st.markdown(
+                "<h2 style='color: #179297; text-align: center;'>Causality between variables - Granger test</h2>",
+                unsafe_allow_html=True
+            )
+        
+        df_granger = df_total.merge(def_group, on='Date', how='inner')
+        
+        variables_granger = [col for col in df_granger.columns if col != 'Date']
+
+        col8, col9 = st.columns(2)
+
+        with col8:
+            # Seleção de variáveis
+            var1 = st.selectbox("Choose the 'causable' variable (X):", variables_granger)
+            var2 = st.selectbox("Choose the variable affected (Y):", variables_granger)
+
+            # Seleção de número de lags
+            max_lag = st.slider("Choose the max number of lags:", min_value=1, max_value=10, value=4)
+
+        with col9:
+            if var1 and var2 and var1 != var2:
+                # Preparar os dados
+                test_df = df_granger[[var2, var1]].dropna()
+
+                # Converter para float e garantir que não há constantes
+                test_df = test_df.astype(float)
+
+                if test_df.nunique().min() <= 1:
+                    st.warning("Uma das variáveis tem valores constantes. O teste de Granger requer variabilidade nas séries.")
+                else:
+                    try:
+                        # Executar o teste de Granger
+                        st.write(f"**Granger test: `{var1}` causes `{var2}`?**")
+                        st.write("Raw test results:")
+                        granger_result = grangercausalitytests(test_df, maxlag=max_lag, verbose=True)
+
+                        # Extrair e exibir os p-valores
+                        pvals = {
+                            lag: res[0]['ssr_ftest'][1]
+                            for lag, res in granger_result.items()
+                        }
+
+                        pval_df = pd.DataFrame.from_dict(pvals, orient='index', columns=['p-value'])
+                        pval_df.index.name = 'Lag'
+                        st.dataframe(pval_df.style.background_gradient(cmap='Greens', axis=0))
+
+                        # Interpretação
+                        significant = pval_df['p-value'] < 0.05
+                        if significant.any():
+                            best_lag = significant.idxmax()
+                            st.success(f"There is significant evidence of Granger causality from `{var1}` to `{var2}` at lag {best_lag}.")
+                        else:
+                            st.warning(f"No significant Granger causality found from `{var1}` to `{var2}`.")
+
+                    except InfeasibleTestError:
+                        st.warning("Error: One of the variables has constant values or theres is dependent linearity, which is not  allowed in Granger test.")
+                    except Exception as e:
+                        st.error(f"Unexpected error: {e}")
             else:
-                st.warning("Please select at least one variable to calculate the correlation matrix.")
-
-        # test granger entre 2 variaveis
-
+                st.info("Select two different variables to apply the Granger causality test.")
 
         # correlação cruzada
+        st.markdown(
+                "<h2 style='color: #179297; text-align: center;'>Cross correlation plot</h2>",
+                unsafe_allow_html=True
+        )
 
+        # Número de lags (defasagens)
+        max_lag = st.slider("Select the maximum number of lags:", min_value=1, max_value=60, value=20)
 
-        st.dataframe(df_totalx)
+        if var1 and var2 and var1 != var2:
+            series_x = df_granger[var1].dropna().astype(float)
+            series_y = df_granger[var2].dropna().astype(float)
+
+            # Garantir que ambas as séries têm variabilidade
+            if series_x.nunique() <= 1 or series_y.nunique() <= 1:
+                st.warning("One of the variables has constant values. Cross correlation cannot be computed.")
+            else:
+                # Padronizar as séries (opcional, mas melhora o resultado da correlação)
+                x = (series_x - series_x.mean()) / series_x.std()
+                y = (series_y - series_y.mean()) / series_y.std()
+
+                # Calcular correlação cruzada para lags de -max_lag até +max_lag
+                lags = np.arange(-max_lag, max_lag + 1)
+                ccf_values = [x.corr(y.shift(lag)) for lag in lags]
+
+                lags = np.arange(-max_lag, max_lag + 1)
+                ccf_values = [x.corr(y.shift(lag)) for lag in lags]
+
+                # Interpretação automática
+                max_corr_idx = np.nanargmax(np.abs(ccf_values))
+                best_lag = lags[max_corr_idx]
+                best_corr = ccf_values[max_corr_idx]
+
+                interpretation = (
+                    f"🔎 **Highest correlation at lag {best_lag}:** {best_corr:.2f}.<br>"
+                    f"{'🡺 ' + var1 + ' may lead ' + var2 if best_lag > 0 else '🡸 ' + var2 + ' may lead ' + var1 if best_lag < 0 else '⏸️ No temporal lead-lag detected. Theres is no evidence that one variable anticipates the other or the other following the other one in time.'}"
+                )
+
+                # Criar gráfico em Plotly
+                fig = go.Figure()
+                fig.add_trace(go.Bar(x=lags, y=ccf_values, marker_color='seagreen'))
+                fig.update_layout(
+                    title=f'Cross-Correlation between {var1} and {var2}',
+                    xaxis_title='Lag',
+                    yaxis_title='Correlation',
+                    template='plotly_white'
+                )
+
+                st.plotly_chart(fig, use_container_width=True)
+                st.markdown(interpretation, unsafe_allow_html=True)
+        else:
+            st.info("Select two different variables to compute cross-correlation.")

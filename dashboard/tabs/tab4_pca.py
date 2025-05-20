@@ -33,13 +33,6 @@ def plot_pca_results_tab(df, df_macro, cols_sector):
             "Select the business sector to analyze:",
             ldp_sectors, index=0, key="sector_selectbox_tab1"
         )
-
-    with col101:
-        include_macro = st.selectbox(
-            "Do you want macroeconomics data for the PCA analysis?",
-            ["Yes", "No"], index=1, key="include_macro"
-        )
-
         
     if sector == 'All':
         df_filtered = df[cols_sector]
@@ -49,22 +42,19 @@ def plot_pca_results_tab(df, df_macro, cols_sector):
             df_filtered['Date'] = df['Date']
             df_filtered = df_filtered[['Date'] + [col for col in df_filtered.columns if col != 'Date']]
 
+    df_filtered['Date'] = pd.to_datetime(df_filtered['Date'], errors='coerce')
+    df_filtered = df_filtered[df_filtered['Date'].dt.month == 12]
+    df_filtered['Date'] = df_filtered['Date'].dt.year
+
+    df_total = df_filtered.merge(df_macro, on='Date', how='left')
+
+
     selected_macro = st.multiselect(
-            "Select which macroeconomics you want for the PCA analysis?",
-            options=df_macro.columns[1:], default=df_macro.columns[1:5], key="selected_macro"
-        )
+                "Select which macroeconomics you want for the PCA analysis?",
+                options=df_total.columns[1:], default=df_total.columns[1:5], key="selected_macro"
+            )
 
-    if include_macro == "Yes":
-        selected_macro_ = ['Date'] + selected_macro
-        st.write("Including macroeconomic data for PCA analysis.")
-        df_filtered = df_filtered[df_filtered['Date'].dt.month == 12]
-        df_filtered['Date'] = df_filtered['Date'].dt.year
-        df_filtered = pd.merge(df_filtered, df_macro[selected_macro_], on='Date', how='left')
-
-    else:
-        df_filtered['Date'] = pd.to_datetime(df_filtered['Date']).dt.year
-
-    
+    df_filtered = df_filtered[['Date'] + selected_macro]
 
     # Eliminar colunas com mais de 30% de valores nulos
     threshold = int(0.7 * df_filtered.shape[0])  # Pelo menos 70% de valores não nulos
