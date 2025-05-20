@@ -1,0 +1,16 @@
+ecbdata==0.1.1
+streamlit==1.44.1
+pandas==2.2.3
+numpy==2.2.4
+matplotlib==3.10.1
+seaborn==0.13.2
+scikit-learn==1.6.1
+scipy==1.15.2
+plotly==6.0.1
+folium==0.19.5
+streamlit_folium==0.24.0
+pyjstat==2.4.0
+requests==2.32.3
+altair==5.5.0
+joblib==1.4.2
+xlsxwriter==3.2.2
