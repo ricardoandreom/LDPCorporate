@@ -47,7 +47,7 @@ def tab_defaults(defaults, df, df_macro, cols_sector):
         selected_vars = st.multiselect("Select the variables for the plot:", variables, default=['EXPOSIÇÃO NPL', 'EXPOSIÇÃO BONS'])
 
         # Botão para normalizar
-        normalize = st.checkbox("Min-Max Normalization")
+        normalize = st.checkbox("Min-Max Normalization", key="minmax_2")
 
         # Filtrar e normalizar se necessário
         if selected_vars:
@@ -171,11 +171,11 @@ def tab_defaults(defaults, df, df_macro, cols_sector):
 
         with col8:
             # Seleção de variáveis
-            var1 = st.selectbox("Choose the 'causable' variable (X):", variables_granger)
-            var2 = st.selectbox("Choose the variable affected (Y):", variables_granger)
+            var1 = st.selectbox("Choose the 'causable' variable (X):", variables_granger, index=variables_granger.index('Unemployment rate'))
+            var2 = st.selectbox("Choose the variable affected (Y):", variables_granger, index=variables_granger.index('Gross domestic product at market prices'))
 
             # Seleção de número de lags
-            max_lag = st.slider("Choose the max number of lags:", min_value=1, max_value=10, value=4)
+            max_lag = st.slider("Choose the max number of lags:", min_value=1, max_value=4, value=4)
 
         with col9:
             if var1 and var2 and var1 != var2:
@@ -226,7 +226,7 @@ def tab_defaults(defaults, df, df_macro, cols_sector):
         )
 
         # Número de lags (defasagens)
-        max_lag = st.slider("Select the maximum number of lags:", min_value=1, max_value=60, value=20)
+        max_lag = st.slider("Select the maximum number of lags:", min_value=1, max_value=10, value=8)
 
         if var1 and var2 and var1 != var2:
             series_x = df_granger[var1].dropna().astype(float)
@@ -271,3 +271,43 @@ def tab_defaults(defaults, df, df_macro, cols_sector):
                 st.markdown(interpretation, unsafe_allow_html=True)
         else:
             st.info("Select two different variables to compute cross-correlation.")
+
+
+    with st.expander("📊 Economic variables vs Defaults analysis over time", expanded=False):
+
+        #st.title("Economic variables vs Defaults analysis over time")
+        st.markdown(
+            "<h2 style='color: #179297; text-align: center;'>Economic variables vs Defaults analysis over time</h2>",
+            unsafe_allow_html=True
+        )
+
+        df_plot_def = df_total.merge(def_group, on='Date', how='inner')
+
+        # Excluir 'Date' da seleção
+        variablesx = [col for col in df_plot_def.columns if col != 'Date']
+        selected_varsx = st.multiselect("Select the variables for the plot:", variablesx, default=['EXPOSIÇÃO NPL', 'EXPOSIÇÃO BONS', 'Gross domestic product at market prices'])
+
+        # Botão para normalizar
+        normalizex = st.checkbox("Min-Max Normalization", key="minmax_1")
+
+        # Filtrar e normalizar se necessário
+        if selected_vars:
+            df_plotx = df_plot_def[['Date'] + selected_varsx].copy()
+
+            if normalizex:
+                scaler = MinMaxScaler()
+                df_plotx[selected_varsx] = scaler.fit_transform(df_plotx[selected_varsx])
+
+            # Plot com Plotly
+            df_meltedx = df_plotx.melt(id_vars='Date', value_vars=selected_varsx,
+                                    var_name='Variable', value_name='Value')
+
+            figx = px.line(df_meltedx, x='Date', y='Value', color='Variable',
+                        title="Selected variables over time")
+
+            st.plotly_chart(figx, use_container_width=True, key='final_plot')
+        else:
+            st.info("Select at one variable for the plot.")
+    #########################################################################
+
+    
