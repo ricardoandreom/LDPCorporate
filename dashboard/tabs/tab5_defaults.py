@@ -147,7 +147,14 @@ def tab_defaults(defaults, df, df_macro, cols_sector):
                     width=600,  
                     height=600,  
                     margin=dict(l=50, r=50, t=50, b=50)  
-                )
+                    )
+
+                    fig6.update_traces(textfont_size=16)
+
+                    fig6.update_layout(
+                        xaxis=dict(tickfont=dict(size=14)),
+                        yaxis=dict(tickfont=dict(size=14))
+                    )
 
                     st.plotly_chart(fig6, use_container_width=True)
                 else:

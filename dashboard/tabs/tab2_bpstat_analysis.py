@@ -134,6 +134,34 @@ def show_bpstat_tab(df, cols_sector):
         options=df_filtered.columns[1:],
         default=df_filtered.columns[4:12])
 
+    # Garantir formato datetime e remover hora
+    df_filtered["Date"] = pd.to_datetime(df_filtered["Date"])
+
+    min_date = df_filtered["Date"].min().date()
+    max_date = df_filtered["Date"].max().date()
+
+    selected_date_range = st.slider(
+        "Select the date range:",
+        min_value=min_date,
+        max_value=max_date,
+        value=(min_date, max_date),
+        step=pd.Timedelta(days=1),
+        key="date_slider"
+    )
+
+    import datetime
+
+    # Converter selected_date_range para datetime.datetime antes da comparação
+    start_date = datetime.datetime.combine(selected_date_range[0], datetime.datetime.min.time())
+    end_date = datetime.datetime.combine(selected_date_range[1], datetime.datetime.min.time())
+
+    # Aplicar filtro
+    df_filtered = df_filtered[
+        (df_filtered["Date"] >= start_date) & 
+        (df_filtered["Date"] <= end_date)
+    ]
+
+
     if len(selected_columns_corr) > 1:
         if selected_columns_corr:
             filtered_corr_df = df_filtered[selected_columns_corr]
@@ -158,7 +186,13 @@ def show_bpstat_tab(df, cols_sector):
             width=600,  
             height=600,  
             margin=dict(l=50, r=50, t=50, b=50)  
-        )
+            )
+
+            fig6.update_traces(textfont_size=20)
+            fig6.update_layout(
+                    xaxis=dict(tickfont=dict(size=14)),
+                    yaxis=dict(tickfont=dict(size=14))
+            )
 
             st.plotly_chart(fig6, use_container_width=True)
         else:

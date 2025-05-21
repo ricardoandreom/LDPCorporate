@@ -178,25 +178,36 @@ def show_macrodata_tab(macro_ecb_df, unemployment_df, labour_prod_df, inflation_
             (macro_ecb_df["Date"] >= selected_date_range[0]) &
             (macro_ecb_df["Date"] <= selected_date_range[1])
         ]
+        minmax_normalize = st.checkbox("Apply Min-Max normalization")
 
         if all_selected_columns:
-            filtered_df_melted = filtered_df.melt(
+            df_to_plot = filtered_df.copy()
+
+            # Aplicar normalização Min-Max se checkbox estiver marcado
+            if minmax_normalize:
+                df_to_plot[all_selected_columns] = (
+                    df_to_plot[all_selected_columns] - df_to_plot[all_selected_columns].min()
+                ) / (df_to_plot[all_selected_columns].max() - df_to_plot[all_selected_columns].min())
+
+            # Transformar para formato longo
+            filtered_df_melted = df_to_plot.melt(
                 id_vars=["Date"], 
                 value_vars=all_selected_columns, 
                 var_name="Variable", 
                 value_name="Value"
             )
 
+            # Criar o gráfico
             fig5 = px.line(
                 filtered_df_melted,
                 x="Date",
                 y="Value",
                 color="Variable", 
-                title="Selected Variables Over Time",
+                title="Selected Variables Over Time" + (" (Normalized)" if minmax_normalize else ""),
                 markers=True,
                 color_discrete_sequence=['#179297', EXTENDED_COLORS[1], EXTENDED_COLORS[2], EXTENDED_COLORS[3],
                                         EXTENDED_COLORS[4], EXTENDED_COLORS[5], EXTENDED_COLORS[6]],
-                labels={"Value": "Value", "Date": "Date", "Variable": "Variable"}
+                labels={"Value": "Normalized values" if minmax_normalize else "Value", "Date": "Date", "Variable": "Variable"}
             )
 
             st.plotly_chart(fig5, use_container_width=True)
@@ -214,7 +225,10 @@ def show_macrodata_tab(macro_ecb_df, unemployment_df, labour_prod_df, inflation_
 
         if len(all_selected_columns) > 1:
             if all_selected_columns:
-                filtered_corr_df = macro_ecb_df[all_selected_columns]
+                filtered_corr_df = macro_ecb_df[
+                        (macro_ecb_df["Date"] >= selected_date_range[0]) &
+                        (macro_ecb_df["Date"] <= selected_date_range[1])
+                ][all_selected_columns]
 
                 corr_matrix = filtered_corr_df.corr()
 
@@ -236,7 +250,13 @@ def show_macrodata_tab(macro_ecb_df, unemployment_df, labour_prod_df, inflation_
                 width=600,  
                 height=600,  
                 margin=dict(l=50, r=50, t=50, b=50)  
-            )
+                )
+                fig6.update_traces(textfont_size=24)
+
+                fig6.update_layout(
+                    xaxis=dict(tickfont=dict(size=14)),
+                    yaxis=dict(tickfont=dict(size=14))
+                )
 
                 st.plotly_chart(fig6, use_container_width=True)
             else:

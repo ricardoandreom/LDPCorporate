@@ -61,9 +61,23 @@ def show_macro_vs_riskdrivers_tab(df_total, df_macro, cols_sector):
             
             bpstat_sector = st.multiselect(
                 "Select the bpstat sectors to analyze:",
-                options=df_filtered.columns[1:].tolist(), default=df_filtered.columns[1:].tolist(), key="bpstat_sector")
+                options=df_filtered.columns[1:].tolist(), default=df_filtered.columns[1:5].tolist(), key="bpstat_sector")
 
             plot_cols = ['Date'] + bpstat_sector + selected_macro 
+
+        min_date, max_date = df_total["Date"].min(), df_total["Date"].max()
+        selected_date_range = st.slider(
+            "Select the date range:",
+            min_value=min_date,
+            max_value=max_date,
+            value=(min_date, max_date), 
+            step=1, key='acb'
+        )
+
+        df_total = df_total[
+            (df_total["Date"] >= selected_date_range[0]) &
+            (df_total["Date"] <= selected_date_range[1])
+        ]
         
         # Add a checkbox to normalize the data
         normalize_data = st.checkbox("Normalize variables for the plot", value=False)
@@ -79,16 +93,37 @@ def show_macro_vs_riskdrivers_tab(df_total, df_macro, cols_sector):
 
         st.dataframe(df_plot.tail(5), hide_index=True)
         
-        # Create a line plot for the selected variables
-        fig = px.line(df_plot, x='Date', y=plot_cols, title=f"Time series plot for {sectorx} companies and Macroeconomic Variables")
+        # Botão para ativar normalização Min-Max
+        normalize = st.checkbox("Apply Min-Max normalization", key='ptk')
+
+        # Copiar o DataFrame original
+        df_plot_processed = df_plot.copy()
+
+        # Aplicar Min-Max se checkbox estiver ativado
+        if normalize:
+            df_plot_processed[plot_cols] = (
+                df_plot_processed[plot_cols] - df_plot_processed[plot_cols].min()
+            ) / (df_plot_processed[plot_cols].max() - df_plot_processed[plot_cols].min())
+
+        # Criar o gráfico de linha
+        fig = px.line(
+            df_plot_processed,
+            x='Date',
+            y=plot_cols,
+            title=f"Time series plot for {sectorx} companies and Macroeconomic Variables" + (" (Normalizado)" if normalize else "")
+        )
+
         fig.update_layout(
             xaxis_title="Date",
-            yaxis_title="Values",
+            yaxis_title="Valores Normalized" if normalize else "Values",
             legend_title="Variables",
             hovermode="x unified"
         )
         fig.update_traces(mode='lines+markers')
+
+        # Mostrar gráfico
         st.plotly_chart(fig, use_container_width=True)
+
 
     with st.expander("📊 Correlation Matrix", expanded=True):
 
@@ -122,7 +157,14 @@ def show_macro_vs_riskdrivers_tab(df_total, df_macro, cols_sector):
                 width=600,  
                 height=600,  
                 margin=dict(l=50, r=50, t=50, b=50)  
-            )
+                )
+                fig6.update_traces(textfont_size=18)
+
+
+                fig6.update_layout(
+                    xaxis=dict(tickfont=dict(size=14)),
+                    yaxis=dict(tickfont=dict(size=14))
+                )
 
                 st.plotly_chart(fig6, use_container_width=True)
             else:

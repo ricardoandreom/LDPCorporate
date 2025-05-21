@@ -54,7 +54,7 @@ def plot_pca_results_tab(df, df_macro, cols_sector):
                 options=df_total.columns[1:], default=df_total.columns[1:5], key="selected_macro"
             )
 
-    df_filtered = df_filtered[['Date'] + selected_macro]
+    df_filtered = df_total[['Date'] + selected_macro]
 
     # Eliminar colunas com mais de 30% de valores nulos
     threshold = int(0.7 * df_filtered.shape[0])  # Pelo menos 70% de valores não nulos
