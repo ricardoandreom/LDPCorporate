@@ -82,6 +82,16 @@ def show_bpstat_tab(df, cols_sector):
             color_discrete_sequence=['#179297'],
             markers=True
         )
+        fig1.update_layout(
+            legend=dict(
+                orientation="h",          # horizontal
+                yanchor="top",
+                y=-0.2,                   # distância abaixo do gráfico (ajusta conforme necessário)
+                xanchor="center",
+                x=0.5
+            )
+        )
+
         st.plotly_chart(fig1, use_container_width=True)
 
     with col2:
@@ -116,6 +126,16 @@ def show_bpstat_tab(df, cols_sector):
         fig2.update_layout(
             height=400,  
             margin=dict(l=20, r=20, t=40, b=20) 
+        )
+
+        fig2.update_layout(
+            legend=dict(
+                orientation="h",          # horizontal
+                yanchor="top",
+                y=-0.2,                   # distância abaixo do gráfico (ajusta conforme necessário)
+                xanchor="center",
+                x=0.5
+            )
         )
 
         st.plotly_chart(fig2, use_container_width=True)

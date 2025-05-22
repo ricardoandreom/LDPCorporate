@@ -210,6 +210,17 @@ def show_macrodata_tab(macro_ecb_df, unemployment_df, labour_prod_df, inflation_
                 labels={"Value": "Normalized values" if minmax_normalize else "Value", "Date": "Date", "Variable": "Variable"}
             )
 
+            fig5.update_layout(
+                legend=dict(
+                    orientation="h",          # horizontal
+                    yanchor="top",
+                    y=-0.2,                   # distância abaixo do gráfico (ajusta conforme necessário)
+                    xanchor="center",
+                    x=0.5
+                )
+            )
+
+
             st.plotly_chart(fig5, use_container_width=True)
         else:
             st.warning("Please select at least one variable to display.")
