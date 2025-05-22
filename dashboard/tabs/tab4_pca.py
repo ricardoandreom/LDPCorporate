@@ -6,6 +6,7 @@ import pandas as pd
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
 import streamlit as st
+import statsmodels.api as sm
 from datetime import datetime
 from config import *
 
@@ -222,3 +223,65 @@ def plot_pca_results_tab(df, df_macro, cols_sector):
         
     except Exception as e:
         st.error("There is no enough data to perform PCA.")
+
+
+
+    with st.expander('Linear model', expanded=True):
+
+        st.title("Interactive linear regression model")
+
+        model_variables = [col for col in df_total.columns if col != 'Date']
+
+        # Escolher target
+        target = st.selectbox("Choose the target variable", model_variables)
+
+        features = st.multiselect("Select the features for the linear model", [v for v in model_variables if v != target])
+
+        # Escolher variáveis independentes
+        if len(features) > 1:
+            #st.dataframe(df_total[features])
+            
+            if target and features:
+                X = df[features]
+                y = df[target]
+                X = sm.add_constant(X)  # Adiciona termo constante
+                model = sm.OLS(y, X).fit()
+
+            col25, col26 = st.columns(2)
+            with col25:  
+                # Mostrar summary
+                st.subheader("Model summary")
+                summary_html = model.summary().as_html()
+
+                st.markdown(summary_html, unsafe_allow_html=True)
+            
+            with col26:
+                summary_df = pd.DataFrame({
+                    "Coefficient": model.params,
+                    "P-value": model.pvalues,
+                    "Std Error": model.bse,
+                    "T-value": model.tvalues
+                })
+
+                st.dataframe(summary_df.style.format("{:.4f}"))
+
+            st.subheader("Predictions")
+            st.markdown("Insert values for a target prediction:")
+
+            input_vals = {}
+            for feature in features:
+                min_val = float(df[feature].min() - (df[feature].min() / 2))
+                max_val = float(df[feature].max() + (df[feature].max() / 2))
+                mean_val = float(df[feature].mean())
+                input_vals[feature] = st.slider(f"{feature}", min_val, max_val, mean_val)
+
+            input_df = pd.DataFrame([input_vals])
+            input_df = sm.add_constant(input_df, has_constant='add')
+            prediction = model.predict(input_df)[0]
+
+            st.metric(label=f"{target} prediction", value=f"{prediction:.2f}")
+        else:
+            st.warning("Please select the features for the linear model.")
+
+
+
