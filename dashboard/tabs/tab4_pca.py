@@ -5,9 +5,11 @@ import numpy as np
 import pandas as pd
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
+from sklearn.feature_selection import SelectKBest, f_regression
 import streamlit as st
 import statsmodels.api as sm
 from datetime import datetime
+from sklearn.metrics import mean_absolute_error, r2_score
 from config import *
 
 def plot_pca_results_tab(df, df_macro, cols_sector):
@@ -232,20 +234,37 @@ def plot_pca_results_tab(df, df_macro, cols_sector):
 
         model_variables = [col for col in df_total.columns if col != 'Date']
 
+        st.dataframe(df_total)
+
         # Escolher target
         target = st.selectbox("Choose the target variable", model_variables)
+        
+        available_features = [v for v in model_variables if v != target]
 
-        features = st.multiselect("Select the features for the linear model", [v for v in model_variables if v != target])
+        st.markdown("### Feature selection")
+        use_auto_fs = st.checkbox("Use automatic feature selection", value=False)
+
+        if use_auto_fs:
+            k = st.slider("Number of top features to select", min_value=1, max_value=len(available_features), value=min(3, len(available_features)))
+            selector = SelectKBest(score_func=f_regression, k=k)
+            X_fs = df_total[available_features]
+            y_fs = df_total[target]
+            selector.fit(X_fs, y_fs)
+            selected_features = list(np.array(available_features)[selector.get_support()])
+            st.markdown(f"**Selected features:** {selected_features}")
+            features = selected_features
+        else:
+            features = st.multiselect("Select the features for the linear model", available_features)
 
         # Escolher variáveis independentes
         if len(features) > 1:
             #st.dataframe(df_total[features])
             
             if target and features:
-                X = df[features]
-                y = df[target]
-                X = sm.add_constant(X)  # Adiciona termo constante
-                model = sm.OLS(y, X).fit()
+                X = df_total[features]
+                y = df_total[target]
+                X_const = sm.add_constant(X)  # Adiciona termo constante
+                model = sm.OLS(y, X_const).fit()
 
             col25, col26 = st.columns(2)
             with col25:  
@@ -265,14 +284,24 @@ def plot_pca_results_tab(df, df_macro, cols_sector):
 
                 st.dataframe(summary_df.style.format("{:.4f}"))
 
+            st.subheader("Model performance on training data")
+            y_pred = model.predict(X_const)
+            r2 = r2_score(y, y_pred)
+            mae = mean_absolute_error(y, y_pred)
+
+            st.markdown(f"""
+            - **R²**: {r2:.4f}  
+            - **MAE**: {mae:.4f}
+            """)
+
             st.subheader("Predictions")
             st.markdown("Insert values for a target prediction:")
 
             input_vals = {}
             for feature in features:
-                min_val = float(df[feature].min() - (df[feature].min() / 2))
-                max_val = float(df[feature].max() + (df[feature].max() / 2))
-                mean_val = float(df[feature].mean())
+                min_val = float(df_total[feature].min() - (df_total[feature].min() / 2))
+                max_val = float(df_total[feature].max() + (df_total[feature].max() / 2))
+                mean_val = float(df_total[feature].mean())
                 input_vals[feature] = st.slider(f"{feature}", min_val, max_val, mean_val)
 
             input_df = pd.DataFrame([input_vals])
