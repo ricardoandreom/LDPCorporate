@@ -294,6 +294,7 @@ def tab_defaults(defaults, df, df_macro, cols_sector):
         variablesx = [col for col in df_plot_def.columns if col != 'Date']
         selected_varsx = st.multiselect("Select the variables for the plot:", variablesx, default=['EXPOSIÇÃO NPL', 'EXPOSIÇÃO BONS', 'Gross domestic product at market prices'])
 
+        value_name = 'Value'
         # Botão para normalizar
         normalizex = st.checkbox("Min-Max Normalization", key="minmax_1")
 
@@ -304,13 +305,23 @@ def tab_defaults(defaults, df, df_macro, cols_sector):
             if normalizex:
                 scaler = MinMaxScaler()
                 df_plotx[selected_varsx] = scaler.fit_transform(df_plotx[selected_varsx])
+                value_name = "Normalized value"
 
             # Plot com Plotly
             df_meltedx = df_plotx.melt(id_vars='Date', value_vars=selected_varsx,
-                                    var_name='Variable', value_name='Value')
+                                    var_name='Variable', value_name=value_name)
 
-            figx = px.line(df_meltedx, x='Date', y='Value', color='Variable',
+            figx = px.line(df_meltedx, x='Date', y=value_name, color='Variable',
                         title="Selected variables over time")
+            figx.update_layout(
+                legend=dict(
+                    orientation="h",          # horizontal
+                    yanchor="top",
+                    y=-0.2,                   # distância abaixo do gráfico (ajusta conforme necessário)
+                    xanchor="center",
+                    x=0.5
+                )
+            )
 
             st.plotly_chart(figx, use_container_width=True, key='final_plot')
         else:
